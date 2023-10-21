@@ -1,0 +1,34 @@
+[tool.poetry]
+name = "GPTalk-Slack"
+version = "0.1.0"
+description = ""
+authors = ["zydxt <zydxt1991@gmail.com>"]
+readme = "README.md"
+packages = [ { include = "GPTalk-Slack", from = "src" } ]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+slack-bolt = "^1.18.0"
+openai = "^0.28.1"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.9.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pyright]
+include = ["src", "tests"]
+exclude = ["**/node_modules", "**/__pycache__",]
+ignore = []
+defineConstant = { DEBUG = true }
+# stubPath = "src/stubs"
+venv = ".venv"
+
+reportMissingImports = true
+reportMissingTypeStubs = false
+
+pythonVersion = "3.11.4"
+pythonPlatform = "Linux"
