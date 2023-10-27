@@ -4,7 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["zydxt <zydxt1991@gmail.com>"]
 readme = "README.md"
-packages = [ { include = "GPTalk-Slack", from = "src" } ]
+packages = [ { include = "gptalk-slack", from = "src" } ]
 
 [tool.poetry.dependencies]
 python = "^3.11"
