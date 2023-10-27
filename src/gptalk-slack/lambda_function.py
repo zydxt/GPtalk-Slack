@@ -1,6 +1,8 @@
+import time
 from slack_bolt import App
 from slack_bolt.adapter.aws_lambda import SlackRequestHandler
 from typing import List, Dict
+from openai.error import RateLimitError
 import logging
 import re
 import openai
@@ -11,6 +13,9 @@ openai.api_version = "2023-07-01-preview"
 openai.api_base = os.getenv("OPENAI_API_BASE")
 openai.api_key = os.getenv("OPENAI_API_KEY")
 openai_engine = os.getenv("OPENAI_API_ENGINE")
+
+openai_retry_times = 5
+openai_retry_interval_sec = 15
 
 LOG = logging.getLogger()
 LOG.setLevel("INFO")
@@ -87,17 +92,26 @@ def get_response(replies_context: List[Dict[str, str | bool]]) -> str:
     ]
     LOG.info(messages)
 
-    response = openai.ChatCompletion.create(
-        engine=openai_engine,
-        messages=messages,
-        temperature=0.7,
-        max_tokens=800,
-        top_p=0.95,
-        frequency_penalty=0,
-        presence_penalty=0,
-        stop=None,
-    )
-    return response.choices[0].message.content  # type: ignore
+    for _ in range(openai_retry_times):
+        try:
+            response = openai.ChatCompletion.create(
+                engine=openai_engine,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=800,
+                top_p=0.95,
+                frequency_penalty=0,
+                presence_penalty=0,
+                stop=None,
+            )
+            return response.choices[0].message.content  # type: ignore
+        except RateLimitError as e:
+            LOG.error("OpenAI rate limit error", e)
+        except Exception as e:
+            LOG.error("OpenAI API error", e)
+        time.sleep(openai_retry_interval_sec)
+    return "OpenAI is not available now, try again later"
+
 
 
 def remove_user_mention_part(string):
