@@ -9,7 +9,7 @@ import openai
 import os
 
 openai.api_type = "azure"
-openai.api_version = "2023-07-01-preview"
+openai.api_version = os.getenv("OPENAI_API_VERSION")
 openai.api_base = os.getenv("OPENAI_API_BASE")
 openai.api_key = os.getenv("OPENAI_API_KEY")
 openai_engine = os.getenv("OPENAI_API_ENGINE")
@@ -37,7 +37,7 @@ def handle_app_mentions(body: dict, say, logger):
 
     reply = get_response(
         replies_context=get_thread_context(
-            channel, thread_ts, bot_user_id, current_mention_text=body["event"]["text"]
+            channel, thread_ts, bot_user_id, body["event"]["text"]
         )
     )
 
@@ -52,16 +52,47 @@ def handle_app_mentions(body: dict, say, logger):
             ],
         }
     ]
-    say(text="", blocks=blocks, thread_ts=thread_ts or ts)
+    say(text=reply, blocks=blocks, thread_ts=thread_ts or ts)
+
+
+@app.event("message")
+def handle_direct_message(body: dict, say, logger):
+    logger.info(body)
+    channel = body["event"]["channel"]
+    if not channel:
+        logger.warn("channel is None!")
+        return
+    ts = body["event"].get("ts", None)
+    thread_ts = body["event"].get("thread_ts", None)
+    bot_user_id = body["authorizations"][0]["user_id"]
+
+    reply = get_response(
+        replies_context=get_thread_context(
+            channel, thread_ts, bot_user_id, body["event"]["text"]
+        )
+    )
+
+    blocks = [
+        {
+            "type": "section",
+            "fields": [
+                {
+                    "type": "mrkdwn",
+                    "text": reply,
+                }
+            ],
+        }
+    ]
+    say(text=reply, blocks=blocks, thread_ts=thread_ts or ts)
 
 
 def get_thread_context(
-    channel: str, ts: str, bot_user_id: str, current_mention_text: str
+    channel: str, ts: str, bot_user_id: str, current_text: str
 ) -> List[Dict[str, str | bool]]:
     if not ts:
         return [
             {
-                "text": remove_user_mention_part(current_mention_text),
+                "text": remove_user_mention_part(current_text),
                 "is_bot": False,
             }
         ]
@@ -74,8 +105,6 @@ def get_thread_context(
             "is_bot": msg["user"] == bot_user_id,
         }
         for msg in messages
-        if msg["text"]
-        and (f"<@{bot_user_id}>" in msg["text"] or msg["user"] == bot_user_id)
     ]
     return plain_text
 
@@ -111,7 +140,6 @@ def get_response(replies_context: List[Dict[str, str | bool]]) -> str:
             LOG.error("OpenAI API error", e)
         time.sleep(openai_retry_interval_sec)
     return "OpenAI is not available now, try again later"
-
 
 
 def remove_user_mention_part(string):
